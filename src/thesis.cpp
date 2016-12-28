@@ -7,6 +7,9 @@
 #include <opencv2/imgproc/imgproc.hpp>
 
 #include <string>
+#include <sstream>
+#include <fstream>
+#include <iostream>
 #include <vector>
 //#include <stdio>
 
@@ -28,7 +31,7 @@ public:
 			const string& mean_file,  const string& label_file);
 
 	// Return Top 5 prediction of image 
-	std::vector<Prediction> Classify(const cv::Mat& img, int N = 5);
+	std::vector<Prediction > Classify(const cv::Mat& img, int N = 5);
 
 private:
 	void SetMean(const string& mean_file);
@@ -68,11 +71,17 @@ Network::Network(const string& model_file, const string& weight_file,
 	SetMean(mean_file);
 
 	// Load labels
-	std::ifstream labels(label_file.c_str());		// vector with labels
-	CHECK(labels) << "Unable to open labels file " << label_file;
-	string line;
-	while (std::getline(labels, line))
+	std::ifstream labels2(label_file.c_str());   // vector with labels
+	CHECK(labels2) << "Unable to open labels file " << label_file;
+	std::string line;
+	while (std::getline(labels2, line))
 		labels.push_back(string(line));
+	
+
+	/*std::ifstream label_file;
+	label_file.open(.c_str);
+*/
+
 
 	Blob<float>* output_layer = net->output_blobs()[0];
 	CHECK_EQ(labels.size(), output_layer->channels())
@@ -145,14 +154,14 @@ static std::vector<int> Argmax(const std::vector<float>& v, int N) {
 // Return the top N predictions 
 /************************************************************************/
 std::vector<Prediction> Network::Classify(const cv::Mat& img, int N) {
-	std::vector<float> output = Predict(img);
+	std::vector<float> output = Predict(img);  // output is a float vector
 
 	N = std::min<int>(labels.size(), N);
 	std::vector<int> maxN = Argmax(output, N);
 	std::vector<Prediction> predictions;
 	for (int i = 0; i < N; ++i) {
 		int idx = maxN[i];
-		predictions.push_back(std::make_pair(labels_[idx], output[idx]));
+		predictions.push_back(std::make_pair(labels[idx], output[idx]));  
 	}
 
 	return predictions;
@@ -288,8 +297,8 @@ int main(int argc, char** argv){
 		LOG(INFO) << "Using CPU";
 	}
 
-	const string model_file = "deploy_" + argv[1] + ".prototxt";
-	const string weight_file = "bvlc_" + argv[1] + ".caffemodel";
+	const string model_file = "deploy_" + string(argv[1]) + ".prototxt";
+	const string weight_file = "bvlc_" + string(argv[1]) + ".caffemodel";
 	const string mean_file = "/home/filipa/caffe/data/ilsvrc12/imagenet_mean.binaryproto";
 	const string label_file = "/home/filipa/caffe/data/ilsvrc12/val.txt";
 		
