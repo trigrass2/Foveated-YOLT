@@ -7,9 +7,6 @@
 #include <opencv2/imgproc/imgproc.hpp>
 
 #include <string>
-#include <sstream>
-#include <fstream>
-#include <iostream>
 #include <vector>
 //#include <stdio>
 
@@ -291,8 +288,8 @@ int main(int argc, char** argv){
 		LOG(INFO) << "Using CPU";
 	}
 
-	const string model_file = "deploy_" + string(argv[1]) + ".prototxt";
-	const string weight_file = "bvlc_" + string(argv[1]) + ".caffemodel";
+	const string model_file = "deploy_" + argv[1] + ".prototxt";
+	const string weight_file = "bvlc_" + argv[1] + ".caffemodel";
 	const string mean_file = "/home/filipa/caffe/data/ilsvrc12/imagenet_mean.binaryproto";
 	const string label_file = "/home/filipa/caffe/data/ilsvrc12/val.txt";
 		
