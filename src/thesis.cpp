@@ -271,7 +271,7 @@ void Network::Preprocess(const cv::Mat& img, std::vector<cv::Mat>* input_channel
 int main(int argc, char** argv){
 
 	// Check number of input arguments
-	if (argc < 2 || argc >4){
+        if (argc < 2){
 		cerr << "Please choose pre-trained model: \n"
 			<< "[caffenet] [googlenet] [vggnet] \n\n"
 			<< "Please select mode: \n"
@@ -281,26 +281,26 @@ int main(int argc, char** argv){
 	::google::InitGoogleLogging(argv[0]);
 
 	// Set Mode (CPU / GPU)
-	if (argc >= 3 && strcmp(argv[2], "GPU") == 0){
+        if (argc >= 6 && strcmp(argv[5], "GPU") == 0){
 		Caffe::set_mode(Caffe::GPU);
 		int device_id = 0;
-		if (argc == 4){
-			device_id = atoi(argv[3]);
+                if (argc == 7){
+                        device_id = atoi(argv[6]);
 		}
 		Caffe::SetDevice(device_id);
 		cout << "Using GPU, device_id:" << device_id << "\n" << endl;
 		//LOG(INFO) << "Using GPU";
 	}
 	else{
-		Caffe::set_mode(Caffe::CPU);
+                Caffe::set_mode(Caffe::CPU);
 		cout << "Using CPU\n" << endl;
 		LOG(INFO) << "Using CPU";
 	}
 
-	const string model_file = "deploy_" + string(argv[1]) + ".prototxt";
-	const string weight_file = "bvlc_" + string(argv[1]) + ".caffemodel";
-	const string mean_file = "/home/filipa/caffe/data/ilsvrc12/imagenet_mean.binaryproto";
-	const string label_file = "/home/filipa/caffe/data/ilsvrc12/val.txt";
+        const string model_file = "/files/" + string(argv[1]);
+        const string weight_file = "/files/" + string(argv[2]);
+        const string mean_file = "/files/" + string(argv[3]);
+        const string label_file = "/files/" + string(argv[4]);
 		
 	Network Network(model_file, weight_file, mean_file, label_file);
 

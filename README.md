@@ -1,6 +1,12 @@
 # Foveated-YOLT
 You Only Look Twice - Foveated version
 
+Para executar thesis.cpp:
+
+./yolt deploy_caffenet.prototxt bvlc_caffenet.caffemodel imagenet_mean.binaryproto val.txt
+
+
+
 Objectivo para a tese: 
   - Converter código de Python para C++
   - Comparar os erros de classificação e localização entre o dataset dado e o dataset com blur uniforme
