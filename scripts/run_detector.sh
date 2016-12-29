@@ -7,9 +7,12 @@
 #    exit
 #fi
 
-DIR=$PWD;
+DIR=$PWD; # Foveated_YOLT
 
-# Choose which GPU the tracker runs on
+# Choose set mode for caffe  [CPU | GPU]
+SET_MODE=CPU
+
+# Choose which GPU the detector runs on
 GPU_ID=0
 
 # Choose which video from the test set to start displaying
@@ -22,9 +25,12 @@ PAUSE_VAL=1
 # change this path to the absolute location of the network related files
 FILES_FOLDER_ABSOLUTE_PATH=$PWD"/files/"
 MODEL_FILE="deploy_caffenet.prototxt"
-WEIGHTS_FILE="bvlc_reference_caffenet.caffemodel"
+WEIGHTS_FILE="bvlc_caffenet.caffemodel"
 MEAN_FILE="imagenet_mean.binaryproto"
 LABELS_FILE="val.txt"
 
+
 # /home/filipa/Documents/Foveated_YOLT/files/ deploy_caffenet.prototxt bvlc_caffenet.caffemodel imagenet_mean.binaryproto val.txt
-build/yolt $FILES_FOLDER_ABSOLUTE_PATH $CAFFE_MODEL $MODEL_FILE $WEIGHTS_FILE $MEAN_FILE $LABELS_FILE $GPU_ID
+build/yolt $FILES_FOLDER_ABSOLUTE_PATH $MODEL_FILE $WEIGHTS_FILE $MEAN_FILE $LABELS_FILE $SET_MODE $GPU_ID 
+
+#$GPU_ID

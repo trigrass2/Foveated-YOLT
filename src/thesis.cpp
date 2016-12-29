@@ -273,42 +273,32 @@ void Network::Preprocess(const cv::Mat& img, std::vector<cv::Mat>* input_channel
 
 int main(int argc, char** argv){
 
-	// Check number of input arguments
-        if (argc < 2){
-		cerr << "Please choose pre-trained model: \n"
-			<< "[caffenet] [googlenet] [vggnet] \n\n"
-			<< "Please select mode: \n"
-			<< "[CPU / GPU]  [DEVICE ID]" << endl;  // print error message
-		return 1;
-	}
+        // Init
 	::google::InitGoogleLogging(argv[0]);
 
-	// Set Mode (CPU / GPU)
-        if (argc >= 7 && strcmp(argv[6], "GPU") == 0){
-		Caffe::set_mode(Caffe::GPU);
-		int device_id = 0;
-                if (argc == 8){
-                        device_id = atoi(argv[7]);
-		}
-		Caffe::SetDevice(device_id);
-		cout << "Using GPU, device_id:" << device_id << "\n" << endl;
-		//LOG(INFO) << "Using GPU";
-	}
-	else{
-                Caffe::set_mode(Caffe::CPU);
-		cout << "Using CPU\n" << endl;
-		LOG(INFO) << "Using CPU";
-	}
         const string absolute_path_folder = string(argv[1]);
         const string model_file = absolute_path_folder + string(argv[2]);
         const string weight_file = absolute_path_folder + string(argv[3]);
         const string mean_file = absolute_path_folder + string(argv[4]);
         const string label_file = absolute_path_folder + string(argv[5]);
-		
+
+
+        // Set mode
+        if (strcmp(argv[6], "CPU") == 0){
+            Caffe::set_mode(Caffe::CPU);
+            //cout << "Using CPU\n" << endl;
+        }
+        else{
+            Caffe::set_mode(Caffe::GPU);
+            int device_id = atoi(argv[7]);
+            Caffe::SetDevice(device_id);
+            //cout << "Using GPU, device_id\n" << device_id << "\n" << endl;
+        }
+
         Network Network(model_file, weight_file, mean_file, label_file);
 
         string file = "/home/filipa/Documents/Validation_Set/ILSVRC2012_val_00000001.JPEG"; // load image
-	cout << "---------- Prediction for " << file << " ----------" << endl;
+        cout << "\n---------- Prediction for " << file << " ----------\n" << endl;
 
 	cv::Mat img = cv::imread(file, -1);		 // Read image
 
@@ -316,6 +306,7 @@ int main(int argc, char** argv){
 	std::vector<Prediction> predictions = Network.Classify(img); 
 										
 	// Print the top N predictions
+        cout << "Scores \t" << " Predicted Image" << endl;
 	for (size_t i = 0; i < predictions.size(); ++i) {
 		Prediction p = predictions[i];
 		cout << std::fixed << std::setprecision(4) << p.second << " - \""
