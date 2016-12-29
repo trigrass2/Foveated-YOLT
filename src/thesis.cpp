@@ -11,6 +11,8 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <memory>
+//#include <boost/shared_ptr.hpp>
 //#include <stdio>
 
 using namespace caffe;
@@ -28,7 +30,7 @@ typedef std::pair<string, float> Prediction;
 class Network {
 public:
 	Network(const string& model_file, const string& weight_file,
-			const string& mean_file,  const string& label_file);
+                const string& mean_file,  const string& label_file);
 
 	// Return Top 5 prediction of image 
 	std::vector<Prediction > Classify(const cv::Mat& img, int N = 5);
@@ -40,7 +42,8 @@ private:
 	std::vector<float> Predict(const cv::Mat& img);
 
 	int num_channels;
-	shared_ptr<Net<float> > net;
+        shared_ptr<Net<float> > net;
+
 	cv::Mat mean_;
 	std::vector<string> labels;
 	cv::Size input_geometry;		// size of network - width and height
@@ -51,10 +54,10 @@ private:
 // Load network, mean file and labels
 /************************************************************************/
 Network::Network(const string& model_file, const string& weight_file,
-				 const string& mean_file, const string& label_file){
+                 const string& mean_file, const string& label_file){
 
-	// Load Network and set phase (TRAIN / TEST)
-	Net<float>(model_file, TEST);
+        // Load Network and set phase (TRAIN / TEST)
+        net.reset(new Net<float>(model_file, TEST));
 
 	// Load pre-trained net 
 	net->CopyTrainedLayersFrom(weight_file);
@@ -84,8 +87,8 @@ Network::Network(const string& model_file, const string& weight_file,
 
 
 	Blob<float>* output_layer = net->output_blobs()[0];
-	CHECK_EQ(labels.size(), output_layer->channels())
-		<< "Number of labels is different from the output layer dimension.";
+        /*CHECK_EQ(labels.size(), output_layer->channels())
+                << "Number of labels is different from the output layer dimension.";*/
 }
 
 /************************************************************************/
@@ -281,11 +284,11 @@ int main(int argc, char** argv){
 	::google::InitGoogleLogging(argv[0]);
 
 	// Set Mode (CPU / GPU)
-        if (argc >= 6 && strcmp(argv[5], "GPU") == 0){
+        if (argc >= 7 && strcmp(argv[6], "GPU") == 0){
 		Caffe::set_mode(Caffe::GPU);
 		int device_id = 0;
-                if (argc == 7){
-                        device_id = atoi(argv[6]);
+                if (argc == 8){
+                        device_id = atoi(argv[7]);
 		}
 		Caffe::SetDevice(device_id);
 		cout << "Using GPU, device_id:" << device_id << "\n" << endl;
@@ -296,15 +299,15 @@ int main(int argc, char** argv){
 		cout << "Using CPU\n" << endl;
 		LOG(INFO) << "Using CPU";
 	}
-
-        const string model_file = "/files/" + string(argv[1]);
-        const string weight_file = "/files/" + string(argv[2]);
-        const string mean_file = "/files/" + string(argv[3]);
-        const string label_file = "/files/" + string(argv[4]);
+        const string absolute_path_folder = string(argv[1]);
+        const string model_file = absolute_path_folder + string(argv[2]);
+        const string weight_file = absolute_path_folder + string(argv[3]);
+        const string mean_file = absolute_path_folder + string(argv[4]);
+        const string label_file = absolute_path_folder + string(argv[5]);
 		
-	Network Network(model_file, weight_file, mean_file, label_file);
+        Network Network(model_file, weight_file, mean_file, label_file);
 
-	string file = "/home/filipa/Documents/Validation_Set";		 // load directory
+        string file = "/home/filipa/Documents/Validation_Set/ILSVRC2012_val_00000001.JPEG"; // load image
 	cout << "---------- Prediction for " << file << " ----------" << endl;
 
 	cv::Mat img = cv::imread(file, -1);		 // Read image
