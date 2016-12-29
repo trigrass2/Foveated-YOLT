@@ -3,7 +3,8 @@ You Only Look Twice - Foveated version
 
 Para executar thesis.cpp:
 
-./yolt deploy_caffenet.prototxt bvlc_caffenet.caffemodel imagenet_mean.binaryproto val.txt
+./yolt /home/filipa/Documents/Foveated_YOLT/files/ deploy_caffenet.prototxt bvlc_caffenet.caffemodel imagenet_mean.binaryproto val.txt
+
 
 
 
