@@ -27,7 +27,8 @@ FILES_FOLDER_ABSOLUTE_PATH=$PWD"/files/"
 MODEL_FILE="deploy_caffenet.prototxt"
 WEIGHTS_FILE="bvlc_caffenet.caffemodel"
 MEAN_FILE="imagenet_mean.binaryproto"
-LABELS_FILE="val.txt"
+LABELS_FILE="synset_words_change.txt"
+#val.txt
 
 
 # /home/filipa/Documents/Foveated_YOLT/files/ deploy_caffenet.prototxt bvlc_caffenet.caffemodel imagenet_mean.binaryproto val.txt

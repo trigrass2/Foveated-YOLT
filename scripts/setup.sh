@@ -13,7 +13,6 @@ function get_network_weights
 	# GoogLeNet
 	wget http://dl.caffe.berkeleyvision.org/bvlc_googlenet.caffemodel
 	
-
 	# VGGNet 16 weight layers
 	wget http://www.robots.ox.ac.uk/~vgg/software/very_deep/caffe/VGG_ILSVRC_16_layers.caffemodel
 

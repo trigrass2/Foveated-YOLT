@@ -81,11 +81,6 @@ Network::Network(const string& model_file, const string& weight_file,
 		labels.push_back(string(line));
 	
 
-	/*std::ifstream label_file;
-	label_file.open(.c_str);
-*/
-
-
 	Blob<float>* output_layer = net->output_blobs()[0];
         /*CHECK_EQ(labels.size(), output_layer->channels())
                 << "Number of labels is different from the output layer dimension.";*/
@@ -164,7 +159,8 @@ std::vector<Prediction> Network::Classify(const cv::Mat& img, int N) {
 	std::vector<Prediction> predictions;
 	for (int i = 0; i < N; ++i) {
 		int idx = maxN[i];
-		predictions.push_back(std::make_pair(labels[idx], output[idx]));  
+                //cout << "index" << idx << endl;
+                predictions.push_back(std::make_pair(labels[idx], output[idx]));
 	}
 
 	return predictions;
@@ -306,11 +302,10 @@ int main(int argc, char** argv){
 	std::vector<Prediction> predictions = Network.Classify(img); 
 										
 	// Print the top N predictions
-        cout << "Scores \t" << " Predicted Image" << endl;
-
+        cout << "Score \t " << " Label\n" << endl;
 	for (size_t i = 0; i < predictions.size(); ++i) {
-		Prediction p = predictions[i];
-		cout << std::fixed << std::setprecision(4) << p.second << " - \""
-			 << p.first << "\"" << endl;
+                Prediction p = predictions[i];                                      // pair(label, confidence)
+                cout << std::fixed << std::setprecision(4) << p.second << " - \""   // p.second = confidence
+                         << p.first << "\"" << endl;                                // p.first = label
 	}
 }
