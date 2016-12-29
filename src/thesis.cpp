@@ -307,6 +307,7 @@ int main(int argc, char** argv){
 										
 	// Print the top N predictions
         cout << "Scores \t" << " Predicted Image" << endl;
+
 	for (size_t i = 0; i < predictions.size(); ++i) {
 		Prediction p = predictions[i];
 		cout << std::fixed << std::setprecision(4) << p.second << " - \""
