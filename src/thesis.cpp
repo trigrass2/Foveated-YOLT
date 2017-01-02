@@ -23,6 +23,8 @@ using std::string;
 
 /* Pair (label, confidence) representing a prediction. */
 typedef std::pair<string, float> Prediction;
+/* Pair (label, index) */
+//typedef std::pair<string, int> Indices;
 
 /*****************************************/
 /*		CLASSES
@@ -33,7 +35,7 @@ public:
                 const string& mean_file,  const string& label_file);
 
 	// Return Top 5 prediction of image 
-	std::vector<Prediction > Classify(const cv::Mat& img, int N = 5);
+        std::vector<Prediction> Classify(const cv::Mat& img, int N = 5);
 
 private:
 	void SetMean(const string& mean_file);
@@ -45,8 +47,8 @@ private:
         shared_ptr<Net<float> > net;
 
 	cv::Mat mean_;
-	std::vector<string> labels;
-	cv::Size input_geometry;		// size of network - width and height
+        std::vector<string> labels;
+        cv::Size input_geometry;		// size of network - width and height
 };
 
 /************************************************************************/	
@@ -143,6 +145,7 @@ static std::vector<int> Argmax(const std::vector<float>& v, int N) {
 	std::vector<int> result;
 	for (int i = 0; i < N; ++i)
 		result.push_back(pairs[i].second);
+
 	return result;
 }
 
@@ -157,13 +160,16 @@ std::vector<Prediction> Network::Classify(const cv::Mat& img, int N) {
 	N = std::min<int>(labels.size(), N);
 	std::vector<int> maxN = Argmax(output, N);
 	std::vector<Prediction> predictions;
-	for (int i = 0; i < N; ++i) {
-		int idx = maxN[i];
-                //cout << "index" << idx << endl;
-                predictions.push_back(std::make_pair(labels[idx], output[idx]));
-	}
+        //std::vector<Indices> indices;
 
-	return predictions;
+        for (int i = 0; i < N; ++i) {
+                int idx = maxN[i];
+                predictions.push_back(std::make_pair(labels[idx], output[idx]));
+                //indices.push_back(std::make_pair(labels[idx], idx));
+                cout << "Index " << idx << endl;
+        }
+
+        return predictions;
 
 }
 
@@ -291,21 +297,42 @@ int main(int argc, char** argv){
             //cout << "Using GPU, device_id\n" << device_id << "\n" << endl;
         }
 
+        // Load network, pre-processment, set mean and labels
         Network Network(model_file, weight_file, mean_file, label_file);
 
-        string file = "/home/filipa/Documents/Validation_Set/ILSVRC2012_val_00000001.JPEG"; // load image
-        cout << "\n---------- Prediction for " << file << " ----------\n" << endl;
+        string file = string(argv[8]) + "ILSVRC2012_val_00000001.JPEG";            // load image
+        cout << "\n------- Prediction for " << file << " ------\n" << endl;
 
 	cv::Mat img = cv::imread(file, -1);		 // Read image
 
 	// Predict top 5, return vector predictions with pair (labels, output)
-	std::vector<Prediction> predictions = Network.Classify(img); 
-										
-	// Print the top N predictions
-        cout << "Score \t " << " Label\n" << endl;
+        std::vector<Prediction> predictions = Network.Classify(img);
+
+        // Print the top N predictions
+        cout << "Score \t " << " Predicted Class \n" << endl;
 	for (size_t i = 0; i < predictions.size(); ++i) {
                 Prediction p = predictions[i];                                      // pair(label, confidence)
-                cout << std::fixed << std::setprecision(4) << p.second << " - \""   // p.second = confidence
-                         << p.first << "\"" << endl;                                // p.first = label
+
+                cout << std::fixed << std::setprecision(4) << p.second << " - \""
+                     << p.first << "\"" << endl;
 	}
+
+        /***************************************/
+        // Weakly Supervised Object Localisation
+        Prediction p = predictions[0]; // tentar fazer para o top 1 classe
+        int label_index = 34;
+        std::vector<int> caffeLabel (1000);
+        std::fill(caffeLabel.begin(), caffeLabel.end(), 0); // vector of zeros
+
+        caffeLabel.insert(caffeLabel.begin()+label_index-1, 1);
+        /*for (std::vector<int>::iterator it=caffeLabel.begin(); it!=caffeLabel.end(); ++it)
+            std::cout << ' ' << *it;
+            std::cout << '\n';   */
+
+
+
+
+
+
+
 }
