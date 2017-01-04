@@ -36,6 +36,7 @@ public:
 
 	// Return Top 5 prediction of image 
         std::vector<Prediction> Classify(const cv::Mat& img, int N = 5);
+        std::vector<Prediction> BackwardPass(vector<Prediction> &predictions, int i);    // NEW
 
 private:
 	void SetMean(const string& mean_file);
@@ -134,7 +135,7 @@ static bool PairCompare(const std::pair<float, int>& lhs,
 
 /************************************************************************/
 // Function Argmax
-// Return the indices of the top N values of vector v where N = 5
+// Return the indices of the top N values of vector v
 /************************************************************************/
 static std::vector<int> Argmax(const std::vector<float>& v, int N) {
 	std::vector<std::pair<float, int> > pairs;
@@ -200,6 +201,65 @@ std::vector<float> Network::Predict(const cv::Mat& img) {
 
 	return std::vector<float>(begin, end);
 }
+
+/************************************************************************/
+// Function BackwardPass
+/************************************************************************/
+std::vector<Prediction> Network::BackwardPass(vector<Prediction> &predictions, int i){
+
+    //std::vector<Prediction> predictions;
+    std::vector<Prediction> new_predictions;   // for return
+
+    Prediction p = predictions[i]; // tentar fazer para o top 1 classe
+    int label_index = 34;
+    std::vector<int> caffeLabel (1000);
+    std::fill(caffeLabel.begin(), caffeLabel.end(), 0); // vector of zeros
+
+    caffeLabel.insert(caffeLabel.begin()+label_index-1, 1);
+    /*for (std::vector<int>::iterator it=caffeLabel.begin(); it!=caffeLabel.end(); ++it)
+        std::cout << ' ' << *it;
+        std::cout << '\n';   */
+
+    //cout << "\n" << std::fixed << std::setprecision(4) << p.second << " + \""
+    //     << p.first << "\"" << endl;
+
+
+    Blob<float>* output_layer = net->output_blobs()[0];
+    float* outData = output_layer->mutable_cpu_diff();
+
+    outData[label_index] = 1; //caffeLabel;
+    net->Backward();
+    cout << "Fiz o backward pass para a class " << label_index << endl;
+
+    Blob<float>* output_back_layer = net->output_blobs()[0]; // Especificar layer???
+
+    // Normalize to get saliency map
+    // ?????????
+
+    const float* begin = output_back_layer->cpu_data();
+    const float* end = begin + output_back_layer->channels();
+
+
+    std::vector<float> output = std::vector<float>(begin, end);
+
+
+    int N = 1;
+    N = std::min<int>(labels.size(), N);
+    std::vector<int> maxN = Argmax(output, N);
+    //std::vector<Prediction> predictions;
+    //std::vector<Indices> indices;
+
+    for (int i = 0; i < N; ++i) {
+            int idx = maxN[i];
+            new_predictions.push_back(std::make_pair(labels[idx], output[idx]));
+            //indices.push_back(std::make_pair(labels[idx], idx));
+            cout << "Index " << idx << endl;
+    }
+
+    return new_predictions;
+
+}
+
 
 /************************************************************************/
 // Function WrapInputLayer
@@ -315,19 +375,21 @@ int main(int argc, char** argv){
 
                 cout << std::fixed << std::setprecision(4) << p.second << " - \""
                      << p.first << "\"" << endl;
-	}
+
 
         /***************************************/
         // Weakly Supervised Object Localisation
-        Prediction p = predictions[0]; // tentar fazer para o top 1 classe
-        int label_index = 34;
-        std::vector<int> caffeLabel (1000);
-        std::fill(caffeLabel.begin(), caffeLabel.end(), 0); // vector of zeros
+                std::vector<Prediction> new_predictions = Network.BackwardPass(predictions, i);
+        }
+        // Print the new top N predictions
+        /*cout << "Score \t " << " New Predicted Class \n" << endl;
+        for (size_t i = 0; i < new_predictions.size(); ++i) {
+                Prediction new_p = new_predictions[i];                                      // pair(label, confidence)
 
-        caffeLabel.insert(caffeLabel.begin()+label_index-1, 1);
-        /*for (std::vector<int>::iterator it=caffeLabel.begin(); it!=caffeLabel.end(); ++it)
-            std::cout << ' ' << *it;
-            std::cout << '\n';   */
+                cout << std::fixed << std::setprecision(4) << new_p.second << " - \""
+                     << new_p.first << "\"" << endl;
+
+        }*/
 
 
 
