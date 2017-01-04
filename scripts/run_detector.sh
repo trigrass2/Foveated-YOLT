@@ -28,7 +28,8 @@ MODEL_FILE="deploy_caffenet.prototxt"
 WEIGHTS_FILE="bvlc_caffenet.caffemodel"
 MEAN_FILE="imagenet_mean.binaryproto"
 LABELS_FILE="synset_words_change.txt"
-DATASET="/home/filipa/Documents/Validation_Set/"
+#DATASET="/home/filipa/Documents/Validation_Set/"
+DATASET="files/"
 #val.txt
 
 

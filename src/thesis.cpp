@@ -24,7 +24,7 @@ using std::string;
 /* Pair (label, confidence) representing a prediction. */
 typedef std::pair<string, float> Prediction;
 /* Pair (label, index) */
-//typedef std::pair<string, int> Indices;
+typedef std::pair<string, int> Indices;
 
 /*****************************************/
 /*		CLASSES
@@ -35,8 +35,10 @@ public:
                 const string& mean_file,  const string& label_file);
 
 	// Return Top 5 prediction of image 
+
         std::vector<Prediction> Classify(const cv::Mat& img, int N = 5);
         std::vector<Prediction> BackwardPass(vector<Prediction> &predictions, int i);    // NEW
+
 
 private:
 	void SetMean(const string& mean_file);
@@ -46,6 +48,7 @@ private:
 
 	int num_channels;
         shared_ptr<Net<float> > net;
+
 
 	cv::Mat mean_;
         std::vector<string> labels;
@@ -160,14 +163,19 @@ std::vector<Prediction> Network::Classify(const cv::Mat& img, int N) {
 
 	N = std::min<int>(labels.size(), N);
 	std::vector<int> maxN = Argmax(output, N);
-	std::vector<Prediction> predictions;
-        //std::vector<Indices> indices;
+        std::vector<Prediction> predictions;  // string, float
+        std::vector<Indices> indices;         // string, int
 
         for (int i = 0; i < N; ++i) {
                 int idx = maxN[i];
                 predictions.push_back(std::make_pair(labels[idx], output[idx]));
-                //indices.push_back(std::make_pair(labels[idx], idx));
+                //indices.push_back(pair<string, int> (labels[idx], idx));
+                indices.push_back(std::make_pair(labels[idx], idx));
+
                 cout << "Index " << idx << endl;
+        }
+        for (int i = 0; i < N; ++i) {
+            cout << indices[i].first << " - "  << indices[i].second << endl;
         }
 
         return predictions;
@@ -229,7 +237,7 @@ std::vector<Prediction> Network::BackwardPass(vector<Prediction> &predictions, i
 
     outData[label_index] = 1; //caffeLabel;
     net->Backward();
-    cout << "Fiz o backward pass para a class " << label_index << endl;
+    //cout << "Fiz o backward pass para a class " << label_index << endl;
 
     Blob<float>* output_back_layer = net->output_blobs()[0]; // Especificar layer???
 
@@ -253,7 +261,7 @@ std::vector<Prediction> Network::BackwardPass(vector<Prediction> &predictions, i
             int idx = maxN[i];
             new_predictions.push_back(std::make_pair(labels[idx], output[idx]));
             //indices.push_back(std::make_pair(labels[idx], idx));
-            cout << "Index " << idx << endl;
+
     }
 
     return new_predictions;
@@ -365,31 +373,33 @@ int main(int argc, char** argv){
 
 	cv::Mat img = cv::imread(file, -1);		 // Read image
 
+
 	// Predict top 5, return vector predictions with pair (labels, output)
         std::vector<Prediction> predictions = Network.Classify(img);
+
+
 
         // Print the top N predictions
         cout << "Score \t " << " Predicted Class \n" << endl;
 	for (size_t i = 0; i < predictions.size(); ++i) {
                 Prediction p = predictions[i];                                      // pair(label, confidence)
-
+                //Indices id = indices[i];
                 cout << std::fixed << std::setprecision(4) << p.second << " - \""
                      << p.first << "\"" << endl;
 
+                //cout << id.first << " - "  << id.second << endl;
 
-        /***************************************/
-        // Weakly Supervised Object Localisation
+
+                /***************************************/
+                // Weakly Supervised Object Localisation
                 std::vector<Prediction> new_predictions = Network.BackwardPass(predictions, i);
+
+               // Prediction new_p = new_predictions[0];  // i                                    // pair(label, confidence)
+
+               // cout << std::fixed << std::setprecision(4) << new_p.second << " - \""
+               //      << new_p.first << "\n" << endl;
+
         }
-        // Print the new top N predictions
-        /*cout << "Score \t " << " New Predicted Class \n" << endl;
-        for (size_t i = 0; i < new_predictions.size(); ++i) {
-                Prediction new_p = new_predictions[i];                                      // pair(label, confidence)
-
-                cout << std::fixed << std::setprecision(4) << new_p.second << " - \""
-                     << new_p.first << "\"" << endl;
-
-        }*/
 
 
 
