@@ -37,7 +37,7 @@ public:
 	// Return Top 5 prediction of image 
 
         std::vector<Prediction> Classify(const cv::Mat& img, int N = 5);
-        std::vector<Prediction> BackwardPass(vector<Prediction> &predictions, int i);    // NEW
+        std::vector<Prediction> BackwardPass(vector<Prediction> &predictions, int i, const cv::Mat &img);    // NEW
 
 
 private:
@@ -174,10 +174,11 @@ std::vector<Prediction> Network::Classify(const cv::Mat& img, int N) {
 
                 cout << "Index " << idx << endl;
         }
-        for (int i = 0; i < N; ++i) {
+        /*for (int i = 0; i < N; ++i) {
             cout << indices[i].first << " - "  << indices[i].second << endl;
-        }
+        }*/
 
+        // Como retornar indices?
         return predictions;
 
 }
@@ -213,13 +214,13 @@ std::vector<float> Network::Predict(const cv::Mat& img) {
 /************************************************************************/
 // Function BackwardPass
 /************************************************************************/
-std::vector<Prediction> Network::BackwardPass(vector<Prediction> &predictions, int i){
+std::vector<Prediction> Network::BackwardPass(vector<Prediction> &predictions, int i,const cv::Mat& img){
 
     //std::vector<Prediction> predictions;
     std::vector<Prediction> new_predictions;   // for return
 
-    Prediction p = predictions[i]; // tentar fazer para o top 1 classe
-    int label_index = 34;
+    Prediction p = predictions[i]; // for each predicted class
+    int label_index = 34;          // FALTA VECTOR COM OS INDEXES DAS CLASSES
     std::vector<int> caffeLabel (1000);
     std::fill(caffeLabel.begin(), caffeLabel.end(), 0); // vector of zeros
 
@@ -228,17 +229,15 @@ std::vector<Prediction> Network::BackwardPass(vector<Prediction> &predictions, i
         std::cout << ' ' << *it;
         std::cout << '\n';   */
 
-    //cout << "\n" << std::fixed << std::setprecision(4) << p.second << " + \""
-    //     << p.first << "\"" << endl;
-
-
+    // Tem dados do forward
     Blob<float>* output_layer = net->output_blobs()[0];
     float* outData = output_layer->mutable_cpu_diff();
 
-    outData[label_index] = 1; //caffeLabel;
+    outData[label_index] = 1; // Specific class = 1;
     net->Backward();
     //cout << "Fiz o backward pass para a class " << label_index << endl;
 
+    // TOU AQUI!
     Blob<float>* output_back_layer = net->output_blobs()[0]; // Especificar layer???
 
     // Normalize to get saliency map
@@ -247,15 +246,22 @@ std::vector<Prediction> Network::BackwardPass(vector<Prediction> &predictions, i
     const float* begin = output_back_layer->cpu_data();
     const float* end = begin + output_back_layer->channels();
 
-
     std::vector<float> output = std::vector<float>(begin, end);
 
 
-    int N = 1;
+    // SALIENCY MAP
+    // SEGMENTATION MASK
+    // CROP BBOX
+    // RESIZE CROPPED IMAGE
+    // Forward
+    //         std::vector<float> forward_output = Predict(img);
+
+
+
+
+    int N = 5;
     N = std::min<int>(labels.size(), N);
     std::vector<int> maxN = Argmax(output, N);
-    //std::vector<Prediction> predictions;
-    //std::vector<Indices> indices;
 
     for (int i = 0; i < N; ++i) {
             int idx = maxN[i];
@@ -392,12 +398,12 @@ int main(int argc, char** argv){
 
                 /***************************************/
                 // Weakly Supervised Object Localisation
-                std::vector<Prediction> new_predictions = Network.BackwardPass(predictions, i);
+                std::vector<Prediction> new_predictions = Network.BackwardPass(predictions, i,img);
 
-               // Prediction new_p = new_predictions[0];  // i                                    // pair(label, confidence)
+                Prediction new_p = new_predictions[i];  // i                                    // pair(label, confidence)
 
-               // cout << std::fixed << std::setprecision(4) << new_p.second << " - \""
-               //      << new_p.first << "\n" << endl;
+                cout << std::fixed << std::setprecision(4) << new_p.second << " - \""
+                     << new_p.first << "\n" << endl;
 
         }
 
