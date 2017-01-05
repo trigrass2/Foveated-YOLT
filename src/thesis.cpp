@@ -23,36 +23,66 @@ using std::string;
 
 /* Pair (label, confidence) representing a prediction. */
 typedef std::pair<string, float> Prediction;
-/* Pair (label, index) */
-typedef std::pair<string, int> Indices;
+
 
 /*****************************************/
 /*		CLASSES
 /*****************************************/
-class Network {
+
+class ClassData{
 public:
-	Network(const string& model_file, const string& weight_file,
-                const string& mean_file,  const string& label_file);
+    ClassData(int N_): N(N_)    {
+      label.resize(N);
+      score.resize(N);
+      index.resize(N);
+    }
+    int N;
+    std::vector<string> label;
+    std::vector<float> score;
+    std::vector<int> index;
 
-	// Return Top 5 prediction of image 
+    friend ostream &operator<<( ostream &output,const ClassData &D ) {
+        for(int i=0; i<D.N;++i) {
+            output << " Index: " << D.index[i] << "\n"
+                   << " Label: " << D.label[i] << "\n"
+                   << " Confidence: " << D.score[i] << "\n" << endl;
+        }
+        return output;
+    }
+};
 
-        std::vector<Prediction> Classify(const cv::Mat& img, int N = 5);
-        std::vector<Prediction> BackwardPass(vector<Prediction> &predictions, int i, const cv::Mat &img);    // NEW
+/*struct Data{
+    std::vector<string> label;
+    std::vector<float> score;
+    std::vector<int> index;
+}data;*/
+
+/*****************************************/
+
+class Network{
+public:
+    Network(const string& model_file, const string& weight_file,
+            const string& mean_file,  const string& label_file);
+
+    // Return Top 5 prediction of image
+
+    std::vector<Prediction> Classify(const cv::Mat& img, int N = 5);
+    std::vector<Prediction> BackwardPass(vector<Prediction> &predictions, int i, const cv::Mat &img);    // NEW
 
 
 private:
-	void SetMean(const string& mean_file);
-	void WrapInputLayer(std::vector<cv::Mat>* input_channels);
-	void Preprocess(const cv::Mat& img, std::vector<cv::Mat>* input_channels);
-	std::vector<float> Predict(const cv::Mat& img);
+    void SetMean(const string& mean_file);
+    void WrapInputLayer(std::vector<cv::Mat>* input_channels);
+    void Preprocess(const cv::Mat& img, std::vector<cv::Mat>* input_channels);
+    std::vector<float> Predict(const cv::Mat& img);
 
-	int num_channels;
-        shared_ptr<Net<float> > net;
+    int num_channels;
+    shared_ptr<Net<float> > net;
 
 
-	cv::Mat mean_;
-        std::vector<string> labels;
-        cv::Size input_geometry;		// size of network - width and height
+    cv::Mat mean_;
+    std::vector<string> labels;
+    cv::Size input_geometry;		// size of network - width and height
 };
 
 /************************************************************************/	
@@ -60,36 +90,40 @@ private:
 // Load network, mean file and labels
 /************************************************************************/
 Network::Network(const string& model_file, const string& weight_file,
-                 const string& mean_file, const string& label_file){
+                 const string& mean_file, const string& label_file)
+{
 
-        // Load Network and set phase (TRAIN / TEST)
-        net.reset(new Net<float>(model_file, TEST));
+    // Load Network and set phase (TRAIN / TEST)
+    net.reset(new Net<float>(model_file, TEST));
 
-	// Load pre-trained net 
-	net->CopyTrainedLayersFrom(weight_file);
+    // Load pre-trained net
+    net->CopyTrainedLayersFrom(weight_file);
 
-	// Set input layer and check number of channels
-	Blob<float>* input_layer = net->input_blobs()[0];
-	num_channels = input_layer->channels();
-	CHECK(num_channels == 3 || num_channels == 1)
-		  << "Input layer should have 1 or 3 channels";
+    // Set input layer and check number of channels
+    Blob<float>* input_layer = net->input_blobs()[0];
+    num_channels = input_layer->channels();
+    CHECK(num_channels == 3 || num_channels == 1)
+            << "Input layer should have 1 or 3 channels";
 
-	input_geometry = cv::Size(input_layer->width(), input_layer->height());
+    input_geometry = cv::Size(input_layer->width(), input_layer->height());
 
-	// Load mean file
-	SetMean(mean_file);
+    // Load mean file
+    SetMean(mean_file);
 
-	// Load labels
-	std::ifstream labels2(label_file.c_str());   // vector with labels
-	CHECK(labels2) << "Unable to open labels file " << label_file;
-	std::string line;
-	while (std::getline(labels2, line))
-		labels.push_back(string(line));
-	
+    // Load labels
+    std::ifstream labels2(label_file.c_str());   // vector with labels
+    CHECK(labels2) << "Unable to open labels file " << label_file;
+    std::string line;
+    while (std::getline(labels2, line))
+        labels.push_back(string(line));
 
-	Blob<float>* output_layer = net->output_blobs()[0];
-        /*CHECK_EQ(labels.size(), output_layer->channels())
-                << "Number of labels is different from the output layer dimension.";*/
+    /*for (size_t i = 0; i < labels.size(); ++i) {
+        cout << labels[i] << endl;
+    }*/
+
+    Blob<float>* output_layer = net->output_blobs()[0];
+    CHECK_EQ(labels.size(), output_layer->channels())
+                << "Number of labels is different from the output layer dimension.";
 }
 
 /************************************************************************/
@@ -97,32 +131,32 @@ Network::Network(const string& model_file, const string& weight_file,
 // Create a mean image
 /************************************************************************/
 void Network::SetMean(const string& mean_file) {
-	BlobProto blob_proto;
-	ReadProtoFromBinaryFileOrDie(mean_file.c_str(), &blob_proto);
+    BlobProto blob_proto;
+    ReadProtoFromBinaryFileOrDie(mean_file.c_str(), &blob_proto);
 
-	// Convert from BlobProto to Blob<float> 
-	Blob<float> mean_blob;
-	mean_blob.FromProto(blob_proto);			// make copy
-	CHECK_EQ(mean_blob.channels(), num_channels)
-		<< "Number of channels of mean file doesn't match input layer";
+    // Convert from BlobProto to Blob<float>
+    Blob<float> mean_blob;
+    mean_blob.FromProto(blob_proto);			// make copy
+    CHECK_EQ(mean_blob.channels(), num_channels)
+            << "Number of channels of mean file doesn't match input layer";
 
-	// The format of the mean file is planar 32-bit float BGR or grayscale
-	std::vector<cv::Mat> channels;
-	float* data = mean_blob.mutable_cpu_data();
-	for (int i = 0; i < num_channels; ++i) {
-		// Extract an individual channel
-		cv::Mat channel(mean_blob.height(), mean_blob.width(), CV_32FC1, data);
-		channels.push_back(channel);
-		data += mean_blob.height() * mean_blob.width();
-	}
+    // The format of the mean file is planar 32-bit float BGR or grayscale
+    std::vector<cv::Mat> channels;
+    float* data = mean_blob.mutable_cpu_data();
+    for (int i = 0; i < num_channels; ++i) {
+        // Extract an individual channel
+        cv::Mat channel(mean_blob.height(), mean_blob.width(), CV_32FC1, data);
+        channels.push_back(channel);
+        data += mean_blob.height() * mean_blob.width();
+    }
 
-	// Merge the separate channels into a single image
-	cv::Mat mean;
-	cv::merge(channels, mean);
+    // Merge the separate channels into a single image
+    cv::Mat mean;
+    cv::merge(channels, mean);
 
-	// Compute the global mean pixel value and create a mean image filled with this value 
-	cv::Scalar channel_mean = cv::mean(mean);
-	mean_ = cv::Mat(input_geometry, mean.type(), channel_mean);
+    // Compute the global mean pixel value and create a mean image filled with this value
+    cv::Scalar channel_mean = cv::mean(mean);
+    mean_ = cv::Mat(input_geometry, mean.type(), channel_mean);
 }
 
 
@@ -131,8 +165,8 @@ void Network::SetMean(const string& mean_file) {
 // Compare 2 pairs
 /************************************************************************/
 static bool PairCompare(const std::pair<float, int>& lhs,
-						const std::pair<float, int>& rhs) {
-	return lhs.first > rhs.first;
+                        const std::pair<float, int>& rhs) {
+    return lhs.first > rhs.first;
 }
 
 
@@ -141,16 +175,16 @@ static bool PairCompare(const std::pair<float, int>& lhs,
 // Return the indices of the top N values of vector v
 /************************************************************************/
 static std::vector<int> Argmax(const std::vector<float>& v, int N) {
-	std::vector<std::pair<float, int> > pairs;
-	for (size_t i = 0; i < v.size(); ++i)
-		pairs.push_back(std::make_pair(v[i], i));
-	std::partial_sort(pairs.begin(), pairs.begin() + N, pairs.end(), PairCompare);
+    std::vector<std::pair<float, int> > pairs;
+    for (size_t i = 0; i < v.size(); ++i)
+        pairs.push_back(std::make_pair(v[i], i));
+    std::partial_sort(pairs.begin(), pairs.begin() + N, pairs.end(), PairCompare);
 
-	std::vector<int> result;
-	for (int i = 0; i < N; ++i)
-		result.push_back(pairs[i].second);
+    std::vector<int> result;
+    for (int i = 0; i < N; ++i)
+        result.push_back(pairs[i].second);
 
-	return result;
+    return result;
 }
 
 
@@ -159,27 +193,29 @@ static std::vector<int> Argmax(const std::vector<float>& v, int N) {
 // Return the top N predictions 
 /************************************************************************/
 std::vector<Prediction> Network::Classify(const cv::Mat& img, int N) {
-	std::vector<float> output = Predict(img);  // output is a float vector
+    std::vector<float> output = Predict(img);  // output is a float vector
 
-	N = std::min<int>(labels.size(), N);
-	std::vector<int> maxN = Argmax(output, N);
-        std::vector<Prediction> predictions;  // string, float
-        std::vector<Indices> indices;         // string, int
 
-        for (int i = 0; i < N; ++i) {
-                int idx = maxN[i];
-                predictions.push_back(std::make_pair(labels[idx], output[idx]));
-                //indices.push_back(pair<string, int> (labels[idx], idx));
-                indices.push_back(std::make_pair(labels[idx], idx));
+    ClassData mydata(N); // objecto
 
-                cout << "Index " << idx << endl;
-        }
-        /*for (int i = 0; i < N; ++i) {
-            cout << indices[i].first << " - "  << indices[i].second << endl;
-        }*/
+    N = std::min<int>(labels.size(), N);
+    std::vector<int> maxN = Argmax(output, N);
+    std::vector<Prediction> predictions;  // string, float
 
-        // Como retornar indices?
-        return predictions;
+
+    for (int i = 0; i < N; ++i) {
+        int idx = maxN[i];
+
+        mydata.index[i] = idx;
+        mydata.label[i] = labels[idx];
+        mydata.score[i] = output[idx];
+
+
+
+    }
+    cout << mydata << endl;  // imprime os dados do top 5
+
+    return predictions;
 
 }
 
@@ -188,27 +224,27 @@ std::vector<Prediction> Network::Classify(const cv::Mat& img, int N) {
 // wrap input layers and make preprocessing
 /************************************************************************/
 std::vector<float> Network::Predict(const cv::Mat& img) {
-	Blob<float>* input_layer = net->input_blobs()[0];
+    Blob<float>* input_layer = net->input_blobs()[0];
 
-	input_layer->Reshape(1, num_channels, input_geometry.height, input_geometry.width);
-	
-	// Forward dimension change to all layers
-	net->Reshape();		
- 
-	std::vector<cv::Mat> input_channels;
-	WrapInputLayer(&input_channels);
+    input_layer->Reshape(1, num_channels, input_geometry.height, input_geometry.width);
 
-	// Convert the input image to the input image format of the network
-	Preprocess(img, &input_channels);
+    // Forward dimension change to all layers
+    net->Reshape();
 
-	net->Forward();
+    std::vector<cv::Mat> input_channels;
+    WrapInputLayer(&input_channels);
 
-	// Copy the output layer to a std::vector 
-	Blob<float>* output_layer = net->output_blobs()[0];
-	const float* begin = output_layer->cpu_data();      // output of forward pass
-	const float* end = begin + output_layer->channels();
+    // Convert the input image to the input image format of the network
+    Preprocess(img, &input_channels);
 
-	return std::vector<float>(begin, end);
+    net->Forward();
+
+    // Copy the output layer to a std::vector
+    Blob<float>* output_layer = net->output_blobs()[0];
+    const float* begin = output_layer->cpu_data();      // output of forward pass
+    const float* end = begin + output_layer->channels();
+
+    return std::vector<float>(begin, end);
 }
 
 /************************************************************************/
@@ -264,9 +300,9 @@ std::vector<Prediction> Network::BackwardPass(vector<Prediction> &predictions, i
     std::vector<int> maxN = Argmax(output, N);
 
     for (int i = 0; i < N; ++i) {
-            int idx = maxN[i];
-            new_predictions.push_back(std::make_pair(labels[idx], output[idx]));
-            //indices.push_back(std::make_pair(labels[idx], idx));
+        int idx = maxN[i];
+        new_predictions.push_back(std::make_pair(labels[idx], output[idx]));
+        //indices.push_back(std::make_pair(labels[idx], idx));
 
     }
 
@@ -281,17 +317,17 @@ std::vector<Prediction> Network::BackwardPass(vector<Prediction> &predictions, i
 // The last preprocessing operation will write the separate channels directly to the input layer. 
 /************************************************************************/
 void Network::WrapInputLayer(std::vector<cv::Mat>* input_channels){
-	Blob<float>* input_layer = net->input_blobs()[0];
+    Blob<float>* input_layer = net->input_blobs()[0];
 
-	int width = input_layer->width();
-	int height = input_layer->height();
-	float* input_data = input_layer->mutable_cpu_data();
+    int width = input_layer->width();
+    int height = input_layer->height();
+    float* input_data = input_layer->mutable_cpu_data();
 
-	for (int i = 0; i < input_layer->channels(); ++i) {
-		cv::Mat channel(height, width, CV_32FC1, input_data);
-		input_channels->push_back(channel);
-		input_data += width * height;
-	}
+    for (int i = 0; i < input_layer->channels(); ++i) {
+        cv::Mat channel(height, width, CV_32FC1, input_data);
+        input_channels->push_back(channel);
+        input_data += width * height;
+    }
 }
 
 
@@ -300,46 +336,46 @@ void Network::WrapInputLayer(std::vector<cv::Mat>* input_channels){
 // Subtract mean, swap channels, resize input
 /************************************************************************/
 void Network::Preprocess(const cv::Mat& img, std::vector<cv::Mat>* input_channels){
-	
-	// Convert the input image to the input image format of the network
-	// swap channels from RGB to BGR
-	cv::Mat sample;
-	if (img.channels() == 3 && num_channels == 1)
-		cv::cvtColor(img, sample, cv::COLOR_BGR2GRAY);
-	else if (img.channels() == 4 && num_channels == 1)
-		cv::cvtColor(img, sample, cv::COLOR_BGRA2GRAY);
-	else if (img.channels() == 4 && num_channels == 3)
-		cv::cvtColor(img, sample, cv::COLOR_BGRA2BGR);
-	else if (img.channels() == 1 && num_channels == 3)
-		cv::cvtColor(img, sample, cv::COLOR_GRAY2BGR);
-	else
-		sample = img;
 
-	// Resize if geometry of image != input geometry of the network
-	cv::Mat sample_resized;
-	if (sample.size() != input_geometry)
-		cv::resize(sample, sample_resized, input_geometry);
-	else
-		sample_resized = sample;
+    // Convert the input image to the input image format of the network
+    // swap channels from RGB to BGR
+    cv::Mat sample;
+    if (img.channels() == 3 && num_channels == 1)
+        cv::cvtColor(img, sample, cv::COLOR_BGR2GRAY);
+    else if (img.channels() == 4 && num_channels == 1)
+        cv::cvtColor(img, sample, cv::COLOR_BGRA2GRAY);
+    else if (img.channels() == 4 && num_channels == 3)
+        cv::cvtColor(img, sample, cv::COLOR_BGRA2BGR);
+    else if (img.channels() == 1 && num_channels == 3)
+        cv::cvtColor(img, sample, cv::COLOR_GRAY2BGR);
+    else
+        sample = img;
 
-	cv::Mat sample_float;
-	if (num_channels == 3)		// RGB
-		sample_resized.convertTo(sample_float, CV_32FC3);
-	else
-		sample_resized.convertTo(sample_float, CV_32FC1);
+    // Resize if geometry of image != input geometry of the network
+    cv::Mat sample_resized;
+    if (sample.size() != input_geometry)
+        cv::resize(sample, sample_resized, input_geometry);
+    else
+        sample_resized = sample;
 
-	// Subtract the dataset-mean value in each channel
-	cv::Mat sample_normalized;
-	cv::subtract(sample_float, mean_, sample_normalized);
+    cv::Mat sample_float;
+    if (num_channels == 3)		// RGB
+        sample_resized.convertTo(sample_float, CV_32FC3);
+    else
+        sample_resized.convertTo(sample_float, CV_32FC1);
 
-	/* This operation will write the separate BGR planes directly to the
-	   input layer of the network because it is wrapped by the cv::Mat
-	   objects in input_channels. */
-	cv::split(sample_normalized, *input_channels);
+    // Subtract the dataset-mean value in each channel
+    cv::Mat sample_normalized;
+    cv::subtract(sample_float, mean_, sample_normalized);
 
-	CHECK(reinterpret_cast<float*>(input_channels->at(0).data)
-		== net->input_blobs()[0]->cpu_data())
-		<< "Input channels are not wrapping the input layer of the network.";
+    /* This operation will write the separate BGR planes directly to the
+       input layer of the network because it is wrapped by the cv::Mat
+       objects in input_channels. */
+    cv::split(sample_normalized, *input_channels);
+
+    CHECK(reinterpret_cast<float*>(input_channels->at(0).data)
+          == net->input_blobs()[0]->cpu_data())
+            << "Input channels are not wrapping the input layer of the network.";
 }
 
 
@@ -349,64 +385,64 @@ void Network::Preprocess(const cv::Mat& img, std::vector<cv::Mat>* input_channel
 
 int main(int argc, char** argv){
 
-        // Init
-	::google::InitGoogleLogging(argv[0]);
+    // Init
+    ::google::InitGoogleLogging(argv[0]);
 
-        const string absolute_path_folder = string(argv[1]);
-        const string model_file = absolute_path_folder + string(argv[2]);
-        const string weight_file = absolute_path_folder + string(argv[3]);
-        const string mean_file = absolute_path_folder + string(argv[4]);
-        const string label_file = absolute_path_folder + string(argv[5]);
-
-
-        // Set mode
-        if (strcmp(argv[6], "CPU") == 0){
-            Caffe::set_mode(Caffe::CPU);
-            //cout << "Using CPU\n" << endl;
-        }
-        else{
-            Caffe::set_mode(Caffe::GPU);
-            int device_id = atoi(argv[7]);
-            Caffe::SetDevice(device_id);
-            //cout << "Using GPU, device_id\n" << device_id << "\n" << endl;
-        }
-
-        // Load network, pre-processment, set mean and labels
-        Network Network(model_file, weight_file, mean_file, label_file);
-
-        string file = string(argv[8]) + "ILSVRC2012_val_00000001.JPEG";            // load image
-        cout << "\n------- Prediction for " << file << " ------\n" << endl;
-
-	cv::Mat img = cv::imread(file, -1);		 // Read image
+    const string absolute_path_folder = string(argv[1]);
+    const string model_file = absolute_path_folder + string(argv[2]);
+    const string weight_file = absolute_path_folder + string(argv[3]);
+    const string mean_file = absolute_path_folder + string(argv[4]);
+    const string label_file = absolute_path_folder + string(argv[5]);
 
 
-	// Predict top 5, return vector predictions with pair (labels, output)
-        std::vector<Prediction> predictions = Network.Classify(img);
+    // Set mode
+    if (strcmp(argv[6], "CPU") == 0){
+        Caffe::set_mode(Caffe::CPU);
+        //cout << "Using CPU\n" << endl;
+    }
+    else{
+        Caffe::set_mode(Caffe::GPU);
+        int device_id = atoi(argv[7]);
+        Caffe::SetDevice(device_id);
+        //cout << "Using GPU, device_id\n" << device_id << "\n" << endl;
+    }
+
+    //ClassData classdata; // Objecto
+
+    // Load network, pre-processment, set mean and labels
+    Network Network(model_file, weight_file, mean_file, label_file);
+
+    string file = string(argv[8]) + "ILSVRC2012_val_00000001.JPEG";            // load image
+    cout << "\n------- Prediction for " << file << " ------\n" << endl;
+
+    cv::Mat img = cv::imread(file, -1);		 // Read image
 
 
-
-        // Print the top N predictions
-        cout << "Score \t " << " Predicted Class \n" << endl;
-	for (size_t i = 0; i < predictions.size(); ++i) {
-                Prediction p = predictions[i];                                      // pair(label, confidence)
-                //Indices id = indices[i];
-                cout << std::fixed << std::setprecision(4) << p.second << " - \""
-                     << p.first << "\"" << endl;
-
-                //cout << id.first << " - "  << id.second << endl;
+    // Predict top 5, return vector predictions with pair (labels, output)
+    std::vector<Prediction> predictions = Network.Classify(img);
 
 
-                /***************************************/
-                // Weakly Supervised Object Localisation
-                std::vector<Prediction> new_predictions = Network.BackwardPass(predictions, i,img);
+    // Print the top N predictions
+    cout << "Score \t " << " Predicted Class \n" << endl;
+    for (size_t i = 0; i < predictions.size(); ++i) {
+        Prediction p = predictions[i];                                      // pair(label, confidence)
+        //Indices id = indices[i];
+        cout << std::fixed << std::setprecision(4) << p.second << " - \""
+             << p.first << "\"" << endl;
 
-                Prediction new_p = new_predictions[i];  // i                                    // pair(label, confidence)
+        //cout << id.first << " - "  << id.second << endl;
 
-                cout << std::fixed << std::setprecision(4) << new_p.second << " - \""
-                     << new_p.first << "\n" << endl;
 
-        }
+        /***************************************/
+        // Weakly Supervised Object Localisation
+        std::vector<Prediction> new_predictions = Network.BackwardPass(predictions, i,img);
 
+        Prediction new_p = new_predictions[i];  // i                                    // pair(label, confidence)
+
+        cout << std::fixed << std::setprecision(4) << new_p.second << " - \""
+             << new_p.first << "\n" << endl;
+
+    }
 
 
 
