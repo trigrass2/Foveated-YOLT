@@ -223,6 +223,7 @@ std::vector<float> Network::Predict(const cv::Mat& img) {
 
     // Copy the output layer to a std::vector
     Blob<float>* output_layer = net->output_blobs()[0];
+    //boost::shared_ptr<caffe::Blob<float> > output_layer = net->blob_by_name("fc8");
     const float* begin = output_layer->cpu_data();      // output of forward pass
     const float* end = begin + output_layer->channels();
 
@@ -238,32 +239,34 @@ void Network::BackwardPass(int N,const cv::Mat& img, ClassData mydata){
     std::fill(caffeLabel.begin(), caffeLabel.end(), 0); // vector of zeros
 
     // For each predicted class (top 5)
-    for (int i = 0; i < 1; ++i) {   //N
+    for (int i = 0; i < 1; ++i) {           //N
 
         int label_index = mydata.index[i];  // tem o indice da classe
         caffeLabel.insert(caffeLabel.begin()+label_index-1, 1);
 
         // Tem dados do forward
-        Blob<float>* first_output_layer = net->output_blobs()[0];
+        //Blob<float>* first_output_layer = net->output_blobs()[0];
+        boost::shared_ptr<caffe::Blob<float> > first_output_layer = net->blob_by_name("fc8");
         float* top_data = first_output_layer->mutable_cpu_data();
 
         top_data[label_index] = 1; // Specific class = 1;
 
         net->Backward();
 
-
-        Blob<float>* input_layer = net->input_blobs()[0]; // Especificar layer???
+        boost::shared_ptr<caffe::Blob<float> > input_layer = net->blob_by_name("data");
+        //Blob<float>* input_layer = net->input_blobs()[0]; // Especificar layer???
 
         // Normalize to get saliency map
         // ?????????
         float* bottom_diff = input_layer->mutable_cpu_diff();
         const float* begin_back = input_layer->cpu_data();
         const float* end_back = begin_back + input_layer->channels();
-
         //std::vector<float> input = std::vector<float>(begin, end);
 
-        // SALIENCY MAP
-        //cout << sizeof(bottom_diff) << endl;
+        // SALIENCY MAP - normalizar bottom_diff, layer 'data'
+
+
+
 
 
         // SEGMENTATION MASK
@@ -271,7 +274,7 @@ void Network::BackwardPass(int N,const cv::Mat& img, ClassData mydata){
         // RESIZE CROPPED IMAGE
         // Forward
         net->Forward();
-
+        //boost::shared_ptr<caffe::Blob<float> > output_layer = net->blob_by_name("fc8");
         Blob<float>* output_layer = net->output_blobs()[0];
         const float* begin_forward = output_layer->cpu_data();
         const float* end_forward = begin_forward + output_layer->channels();
@@ -396,6 +399,7 @@ int main(int argc, char** argv){
     Network Network(model_file, weight_file, mean_file, label_file);
 
     string file = string(argv[8]) + "ILSVRC2012_val_00000001.JPEG";            // load image
+    //string file = string(argv[8]) + "resize_000010.jpg";
     cout << "\n------- Prediction for " << file << " ------\n" << endl;
 
     cv::Mat img = cv::imread(file, -1);		 // Read image
