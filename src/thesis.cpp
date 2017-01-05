@@ -31,7 +31,7 @@ typedef std::pair<string, float> Prediction;
 
 class ClassData{
 public:
-    ClassData(int N_): N(N_)    {
+    ClassData(int N_): N(N_)    {  // construtor
       label.resize(N);
       score.resize(N);
       index.resize(N);
@@ -51,23 +51,17 @@ public:
     }
 };
 
-/*struct Data{
-    std::vector<string> label;
-    std::vector<float> score;
-    std::vector<int> index;
-}data;*/
 
 /*****************************************/
 
 class Network{
 public:
     Network(const string& model_file, const string& weight_file,
-            const string& mean_file,  const string& label_file);
+            const string& mean_file,  const string& label_file); //construtor
 
-    // Return Top 5 prediction of image
-
-    std::vector<Prediction> Classify(const cv::Mat& img, int N = 5);
-    std::vector<Prediction> BackwardPass(vector<Prediction> &predictions, int i, const cv::Mat &img);    // NEW
+    // Return Top 5 prediction of image in mydata
+    ClassData Classify(const cv::Mat& img, int N = 5);
+    void BackwardPass(int N, const cv::Mat &img, ClassData mydata);    // NEW
 
 
 private:
@@ -78,7 +72,6 @@ private:
 
     int num_channels;
     shared_ptr<Net<float> > net;
-
 
     cv::Mat mean_;
     std::vector<string> labels;
@@ -116,10 +109,6 @@ Network::Network(const string& model_file, const string& weight_file,
     std::string line;
     while (std::getline(labels2, line))
         labels.push_back(string(line));
-
-    /*for (size_t i = 0; i < labels.size(); ++i) {
-        cout << labels[i] << endl;
-    }*/
 
     Blob<float>* output_layer = net->output_blobs()[0];
     CHECK_EQ(labels.size(), output_layer->channels())
@@ -192,16 +181,13 @@ static std::vector<int> Argmax(const std::vector<float>& v, int N) {
 // Function Classify 
 // Return the top N predictions 
 /************************************************************************/
-std::vector<Prediction> Network::Classify(const cv::Mat& img, int N) {
+ClassData Network::Classify(const cv::Mat& img, int N) {
     std::vector<float> output = Predict(img);  // output is a float vector
-
 
     ClassData mydata(N); // objecto
 
     N = std::min<int>(labels.size(), N);
     std::vector<int> maxN = Argmax(output, N);
-    std::vector<Prediction> predictions;  // string, float
-
 
     for (int i = 0; i < N; ++i) {
         int idx = maxN[i];
@@ -209,14 +195,10 @@ std::vector<Prediction> Network::Classify(const cv::Mat& img, int N) {
         mydata.index[i] = idx;
         mydata.label[i] = labels[idx];
         mydata.score[i] = output[idx];
-
-
-
     }
     cout << mydata << endl;  // imprime os dados do top 5
 
-    return predictions;
-
+    return mydata;
 }
 
 /************************************************************************/
@@ -250,63 +232,65 @@ std::vector<float> Network::Predict(const cv::Mat& img) {
 /************************************************************************/
 // Function BackwardPass
 /************************************************************************/
-std::vector<Prediction> Network::BackwardPass(vector<Prediction> &predictions, int i,const cv::Mat& img){
+void Network::BackwardPass(int N,const cv::Mat& img, ClassData mydata){
 
-    //std::vector<Prediction> predictions;
-    std::vector<Prediction> new_predictions;   // for return
-
-    Prediction p = predictions[i]; // for each predicted class
-    int label_index = 34;          // FALTA VECTOR COM OS INDEXES DAS CLASSES
     std::vector<int> caffeLabel (1000);
     std::fill(caffeLabel.begin(), caffeLabel.end(), 0); // vector of zeros
 
-    caffeLabel.insert(caffeLabel.begin()+label_index-1, 1);
-    /*for (std::vector<int>::iterator it=caffeLabel.begin(); it!=caffeLabel.end(); ++it)
-        std::cout << ' ' << *it;
-        std::cout << '\n';   */
+    // For each predicted class (top 5)
+    for (int i = 0; i < 1; ++i) {   //N
 
-    // Tem dados do forward
-    Blob<float>* output_layer = net->output_blobs()[0];
-    float* outData = output_layer->mutable_cpu_diff();
+        int label_index = mydata.index[i];  // tem o indice da classe
+        caffeLabel.insert(caffeLabel.begin()+label_index-1, 1);
 
-    outData[label_index] = 1; // Specific class = 1;
-    net->Backward();
-    //cout << "Fiz o backward pass para a class " << label_index << endl;
+        // Tem dados do forward
+        Blob<float>* first_output_layer = net->output_blobs()[0];
+        float* top_data = first_output_layer->mutable_cpu_data();
 
-    // TOU AQUI!
-    Blob<float>* output_back_layer = net->output_blobs()[0]; // Especificar layer???
+        top_data[label_index] = 1; // Specific class = 1;
 
-    // Normalize to get saliency map
-    // ?????????
-
-    const float* begin = output_back_layer->cpu_data();
-    const float* end = begin + output_back_layer->channels();
-
-    std::vector<float> output = std::vector<float>(begin, end);
+        net->Backward();
 
 
-    // SALIENCY MAP
-    // SEGMENTATION MASK
-    // CROP BBOX
-    // RESIZE CROPPED IMAGE
-    // Forward
-    //         std::vector<float> forward_output = Predict(img);
+        Blob<float>* input_layer = net->input_blobs()[0]; // Especificar layer???
+
+        // Normalize to get saliency map
+        // ?????????
+        float* bottom_diff = input_layer->mutable_cpu_diff();
+        const float* begin_back = input_layer->cpu_data();
+        const float* end_back = begin_back + input_layer->channels();
+
+        //std::vector<float> input = std::vector<float>(begin, end);
+
+        // SALIENCY MAP
+        //cout << sizeof(bottom_diff) << endl;
 
 
+        // SEGMENTATION MASK
+        // CROP BBOX
+        // RESIZE CROPPED IMAGE
+        // Forward
+        net->Forward();
+
+        Blob<float>* output_layer = net->output_blobs()[0];
+        const float* begin_forward = output_layer->cpu_data();
+        const float* end_forward = begin_forward + output_layer->channels();
+        std::vector<float> output = std::vector<float>(begin_forward, end_forward);
+
+        // Predict new top 5 for the new class
+        N = std::min<int>(labels.size(), N);
+        std::vector<int> maxN = Argmax(output, N);
+
+        for (int j = 0; j < N; ++j) {
+            int idx = maxN[j];
+
+            cout << idx << "\n" << labels[idx] << "\n" << output[idx] << "\n"<< endl;
+
+        }
 
 
-    int N = 5;
-    N = std::min<int>(labels.size(), N);
-    std::vector<int> maxN = Argmax(output, N);
-
-    for (int i = 0; i < N; ++i) {
-        int idx = maxN[i];
-        new_predictions.push_back(std::make_pair(labels[idx], output[idx]));
-        //indices.push_back(std::make_pair(labels[idx], idx));
 
     }
-
-    return new_predictions;
 
 }
 
@@ -407,7 +391,6 @@ int main(int argc, char** argv){
         //cout << "Using GPU, device_id\n" << device_id << "\n" << endl;
     }
 
-    //ClassData classdata; // Objecto
 
     // Load network, pre-processment, set mean and labels
     Network Network(model_file, weight_file, mean_file, label_file);
@@ -416,37 +399,17 @@ int main(int argc, char** argv){
     cout << "\n------- Prediction for " << file << " ------\n" << endl;
 
     cv::Mat img = cv::imread(file, -1);		 // Read image
+    static int N = 5;
+    ClassData mydata(N);
+
+    // Predict top 5
+    mydata = Network.Classify(img);
 
 
-    // Predict top 5, return vector predictions with pair (labels, output)
-    std::vector<Prediction> predictions = Network.Classify(img);
+    /***************************************/
+    // Weakly Supervised Object Localisation
+    /***************************************/
 
-
-    // Print the top N predictions
-    cout << "Score \t " << " Predicted Class \n" << endl;
-    for (size_t i = 0; i < predictions.size(); ++i) {
-        Prediction p = predictions[i];                                      // pair(label, confidence)
-        //Indices id = indices[i];
-        cout << std::fixed << std::setprecision(4) << p.second << " - \""
-             << p.first << "\"" << endl;
-
-        //cout << id.first << " - "  << id.second << endl;
-
-
-        /***************************************/
-        // Weakly Supervised Object Localisation
-        std::vector<Prediction> new_predictions = Network.BackwardPass(predictions, i,img);
-
-        Prediction new_p = new_predictions[i];  // i                                    // pair(label, confidence)
-
-        cout << std::fixed << std::setprecision(4) << new_p.second << " - \""
-             << new_p.first << "\n" << endl;
-
-    }
-
-
-
-
-
+    Network.BackwardPass(N,img, mydata);
 
 }
