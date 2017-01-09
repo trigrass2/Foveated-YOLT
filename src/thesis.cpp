@@ -12,6 +12,8 @@
 #include <iostream>
 #include <vector>
 #include <memory>
+#include <math.h>
+#include <limits>
 //#include <boost/shared_ptr.hpp>
 //#include <stdio>
 
@@ -125,7 +127,7 @@ void Network::SetMean(const string& mean_file) {
 
     // Convert from BlobProto to Blob<float>
     Blob<float> mean_blob;
-    mean_blob.FromProto(blob_proto);			// make copy
+    mean_blob.FromProto(blob_proto);			  // make copy
     CHECK_EQ(mean_blob.channels(), num_channels)
             << "Number of channels of mean file doesn't match input layer";
 
@@ -242,28 +244,31 @@ void Network::BackwardPass(int N,const cv::Mat& img, ClassData mydata){
     for (int i = 0; i < 1; ++i) {           //N
 
         int label_index = mydata.index[i];  // tem o indice da classe
-        caffeLabel.insert(caffeLabel.begin()+label_index-1, 1);
+        //caffeLabel.insert(caffeLabel.begin()+label_index-1, 1);
 
         // Tem dados do forward
-        //Blob<float>* first_output_layer = net->output_blobs()[0];
-        boost::shared_ptr<caffe::Blob<float> > first_output_layer = net->blob_by_name("fc8");
-        float* top_data = first_output_layer->mutable_cpu_data();
+        //Blob<float>* forward_output_layer = net->output_blobs()[0];
+        boost::shared_ptr<caffe::Blob<float> > forward_output_layer = net->blob_by_name("fc8");
+        float* top_data = forward_output_layer->mutable_cpu_data();
 
         top_data[label_index] = 1; // Specific class = 1;
 
         net->Backward();
 
-        boost::shared_ptr<caffe::Blob<float> > input_layer = net->blob_by_name("data");
-        //Blob<float>* input_layer = net->input_blobs()[0]; // Especificar layer???
+        boost::shared_ptr<caffe::Blob<float> > data_layer = net->blob_by_name("data");
+        //Blob<float>* data_layer = net->input_blobs()[0]; // Especificar layer???
 
-        // Normalize to get saliency map
-        // ?????????
-        float* bottom_diff = input_layer->mutable_cpu_diff();
-        const float* begin_back = input_layer->cpu_data();
-        const float* end_back = begin_back + input_layer->channels();
+        float* bottom_diff = data_layer->mutable_cpu_diff();  // gradient
+        float* bottom_data = data_layer->mutable_cpu_data();  // data
+
+        //const float* begin_back = data_layer->cpu_data();  // cpu_diff??
+        //const float* end_back = begin_back + data_layer->channels();
         //std::vector<float> input = std::vector<float>(begin, end);
 
         // SALIENCY MAP - normalizar bottom_diff, layer 'data'
+        // cv::normalize(bottom_data, data_layer->mutable_cpu_data(), 0, 255, NORM_MINMAX=32, CV_8UC1);
+
+
 
 
 
@@ -272,10 +277,12 @@ void Network::BackwardPass(int N,const cv::Mat& img, ClassData mydata){
         // SEGMENTATION MASK
         // CROP BBOX
         // RESIZE CROPPED IMAGE
+
         // Forward
         net->Forward();
-        //boost::shared_ptr<caffe::Blob<float> > output_layer = net->blob_by_name("fc8");
-        Blob<float>* output_layer = net->output_blobs()[0];
+
+        boost::shared_ptr<caffe::Blob<float> > output_layer = net->blob_by_name("fc8");
+        //Blob<float>* output_layer = net->output_blobs()[0];
         const float* begin_forward = output_layer->cpu_data();
         const float* end_forward = begin_forward + output_layer->channels();
         std::vector<float> output = std::vector<float>(begin_forward, end_forward);
@@ -284,12 +291,9 @@ void Network::BackwardPass(int N,const cv::Mat& img, ClassData mydata){
         N = std::min<int>(labels.size(), N);
         std::vector<int> maxN = Argmax(output, N);
 
-        for (int j = 0; j < N; ++j) {
-            int idx = maxN[j];
+        cout << "Look Twice: \n" << mydata << endl;
 
-            cout << idx << "\n" << labels[idx] << "\n" << output[idx] << "\n"<< endl;
 
-        }
 
 
 
@@ -393,7 +397,6 @@ int main(int argc, char** argv){
         Caffe::SetDevice(device_id);
         //cout << "Using GPU, device_id\n" << device_id << "\n" << endl;
     }
-
 
     // Load network, pre-processment, set mean and labels
     Network Network(model_file, weight_file, mean_file, label_file);
