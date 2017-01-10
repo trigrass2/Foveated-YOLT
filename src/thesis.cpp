@@ -14,6 +14,8 @@
 #include <memory>
 #include <math.h>
 #include <limits>
+
+
 //#include <boost/shared_ptr.hpp>
 //#include <stdio>
 
@@ -21,10 +23,12 @@ using namespace caffe;
 using namespace std;
 using std::string;
 //using cv::Mat;
-
+//using namespace boost::numpy;
 
 /* Pair (label, confidence) representing a prediction. */
 typedef std::pair<string, float> Prediction;
+
+
 
 
 /*****************************************/
@@ -63,8 +67,8 @@ public:
 
     // Return Top 5 prediction of image in mydata
     ClassData Classify(const cv::Mat& img, int N = 5);
-    void BackwardPass(int N, const cv::Mat &img, ClassData mydata);    // NEW
-
+    void BackwardPass(int N, const cv::Mat &img, ClassData mydata); // NEW
+    float* Limit_values(float* bottom_data); // NEW
 
 private:
     void SetMean(const string& mean_file);
@@ -79,6 +83,7 @@ private:
     std::vector<string> labels;
     cv::Size input_geometry;		// size of network - width and height
 };
+
 
 /************************************************************************/	
 // Function Network
@@ -258,15 +263,22 @@ void Network::BackwardPass(int N,const cv::Mat& img, ClassData mydata){
         boost::shared_ptr<caffe::Blob<float> > data_layer = net->blob_by_name("data");
         //Blob<float>* data_layer = net->input_blobs()[0]; // Especificar layer???
 
-        float* bottom_diff = data_layer->mutable_cpu_diff();  // gradient
-        float* bottom_data = data_layer->mutable_cpu_data();  // data
+        //float* bottom_diff = data_layer->mutable_cpu_diff();
+        float* bottom_data = data_layer->mutable_cpu_data();
 
         //const float* begin_back = data_layer->cpu_data();  // cpu_diff??
         //const float* end_back = begin_back + data_layer->channels();
         //std::vector<float> input = std::vector<float>(begin, end);
 
-        // SALIENCY MAP - normalizar bottom_diff, layer 'data'
-        // cv::normalize(bottom_data, data_layer->mutable_cpu_data(), 0, 255, NORM_MINMAX=32, CV_8UC1);
+        // SALIENCY MAP - normalizar bottom_data, layer 'data'
+        for (int i=0; i< sizeof(bottom_data); ++i){
+            cout << "Data " << std::setprecision(4) << bottom_data[i] << endl;
+        }
+
+        float* normalize_bottom_data = Network::Limit_values(bottom_data);
+
+
+
 
 
 
@@ -369,6 +381,34 @@ void Network::Preprocess(const cv::Mat& img, std::vector<cv::Mat>* input_channel
             << "Input channels are not wrapping the input layer of the network.";
 }
 
+/************************************************************************/
+// Function Limit Values
+// Find min and max value of vector
+// Return bottom_data normalized
+/************************************************************************/
+float* Network::Limit_values(float* bottom_data){
+    float smallest = bottom_data[0];
+    float largest = bottom_data[0];
+    for (int i=1; i<sizeof(bottom_data); i++) {
+        if (bottom_data[i] < smallest)
+            smallest = bottom_data[i];
+        if (bottom_data[i] > largest)
+            largest= bottom_data[i];
+    }
+    std::vector<float> result;
+    result.push_back(smallest);
+    result.push_back(largest);
+
+    // Normalize
+    for (int i=0; i< sizeof(bottom_data); ++i){
+        bottom_data[i] = bottom_data[i]-result[0];
+        bottom_data[i] = bottom_data[i]/result[1];
+        //cout << bottom_data[i] << "\n" << endl;
+    }
+
+    return bottom_data;
+
+}
 
 /*****************************************/
 //					MAIN
